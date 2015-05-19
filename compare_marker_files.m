@@ -15,8 +15,19 @@ end
 fclose(fid);
 
 % % translate to common time base (secs from start of recording)
-% timestampsAudio_sec = timestampsAudio./FS_audio;
-% timestampsEEG_sec = timestampsEEG./FS_EEG;
-% disp('Please check timestamps!');
-% keyboard; % if they don't line up, do sth like >>timestampsEEG = timestampsEEG([1 2 4 6 7 8]);
+timestampsaudio_sec = timestampsaudio./8000;
+timestampsEEG_sec = timestampsEEG./200;
+timestampsaudio_sec = timestampsaudio_sec - timestampsaudio_sec(1);
+timestampsEEG_sec = timestampsEEG_sec - timestampsEEG_sec(1);
+plot(timestampsaudio_sec,'ro');
+hold on;
+plot(timestampsEEG_sec,'b.');
+
+% normalize both lists to [0..1]
+tmp1 = timestampsaudio-timestampsaudio(1);
+tmp1 = tmp1/tmp1(end);
+tmp2 = timestampsEEG-timestampsEEG(1);
+tmp2 = tmp2/tmp2(end);
+% go through the longer list and find a timepoint that does not have a
+% matching point in the other list
 
