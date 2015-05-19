@@ -1,4 +1,6 @@
-function write_marker_file(file,type)
+function write_marker_file(file)
+
+type = file(end-2:end);
 
 switch type
     case 'wav'
