@@ -16,7 +16,7 @@ fclose(fid);
 
 % % translate to common time base (secs from start of recording)
 timestampsaudio_sec = timestampsaudio./8000;
-timestampsEEG_sec = timestampsEEG./200;
+timestampsEEG_sec = timestampsEEG./500;
 timestampsaudio_sec = timestampsaudio_sec - timestampsaudio_sec(1);
 timestampsEEG_sec = timestampsEEG_sec - timestampsEEG_sec(1);
 plot(timestampsaudio_sec,'ro');
