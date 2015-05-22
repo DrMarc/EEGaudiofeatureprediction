@@ -180,65 +180,18 @@ features.t = (0:length(features.ITD)-1)/features.FS;
 
 function features = lcf_extractaudiofeatures_saliencyKayser(audio,FS_audio)
 disp('Computing Kayser saliency...');
-% divide up a signal into windows
-spec_window = 800; % choose these two parameters so the the step size divides the window (nw_out)...
-spec_overlap = 780; % and overlap (overlap_out) without remainder 
+spec_window = 800;
+spec_overlap = 780;
 nx = length(audio); % size of signal
-nw = nx;% FS_audio * 400; % size of audio window in samples
-y = audio(1:1+nw-1); % make the first window just to get number of freq and time bins
-[~,freqs,tw] = specgram(y,1024,FS_audio,spec_window,spec_overlap); % compute freq and time vectors
+FS_out = (FS_audio/((spec_window-spec_overlap)))/2; % output FS depends on specgram window and overlap (divide by 2 because specgram is subsampled at factor 2)
+[spec,freqs,tw] = specgram(audio,1024,FS_audio,spec_window,spec_overlap); % compute spectrogram
 freqs = freqs(1:2:end)'+eps; % saliency map is stored at half the resolution of the specgram
 nfreqs = length(freqs); % number of freqs in each window
 tw = tw(1:2:end); % saliency map is stored at half the time resolution of the specgram
-ntw = length(tw); % number of time values in each output window
-overlap = 500;% FS_audio * 0.25; % 15s of overlap
-nwindows = floor(nx/(nw-overlap));
-FS_out = (FS_audio/((spec_window-spec_overlap)))/2; % output FS depends on specgram window and overlap (divide by 2 because specgram is subsampled at factor 2)
-overlap_out = FS_out * 0.25; % 15s of overlap at output time resolution
-nx_out = (nwindows*(ntw-overlap_out))+overlap_out; % total length of audio over window length - overlap, then add one overlap back to account for the end = total output timesteps
-pos = 1;
-pos_out = 1;
-sal = zeros(nfreqs,nx_out);
-%intensity = zeros(nfreqs,nx_out);
-%contrast_temp = zeros(nfreqs,nx_out);
-%contrast_spec = zeros(nfreqs,nx_out); % Intensity, temporal contrast, spectral contrast
-n = 1 % loop counter
-while (pos+nw-1 <= nx) % while enough signal left
-    y = audio(pos:pos+nw-1); % make window y
-    [spec,~,~] = specgram(y,1024,FS_audio,spec_window,spec_overlap); % compute spectrogram
-    spec = log(abs(spec)); % make intensity map
-    tmp = Saliency_map(spec,4); % compute saliency map
-    tmp_sal = tmp.eo + tmp.esi + tmp.epi;
-    if n == 1
-        nw_out = size(tmp_sal,2);
-        t = tw; % time points across all windows
-    else
-        t = [t(1:length(t)-overlap_out);tw+t(end)-overlap_out*diff(tw(1:2))+diff(tw(1:2))]; % time points across all windows
-    end
-    %tmp_sal = flatten(tmp_sal',freqs,1);
-    %tmp_intensity = flatten(tmp.eo',freqs,1);
-    %tmp_contrast_temp = flatten(tmp.esi',freqs,1);
-    %tmp_contrast_spec = flatten(tmp.epi',freqs,1);
-    % add raised cosine ramps
-    tmp_sal = lcfCos2Gate(tmp_sal,overlap_out);
-    %tmp_intensity = lcfCos2Gate(tmp_intensity,overlap_out);
-    %tmp_contrast_temp = lcfCos2Gate(tmp_contrast_temp,overlap_out);
-    %tmp_contrast_spec = lcfCos2Gate(tmp_contrast_spec,overlap_out);
-    % copy into output
-    sal(1:nfreqs,pos_out:pos_out+nw_out-1) = sal(1:nfreqs,pos_out:pos_out+nw_out-1) + tmp_sal;
-    %intensity(idx) = intensity(idx) + tmp_intensity';
-    %contrast_temp(idx) = contrast_temp(idx) + tmp_contrast_temp';
-    %contrast_spec(idx) = contrast_spec(idx) + tmp_contrast_spec';
-    pos = pos+nw-overlap; % next audio window
-    pos_out = pos_out+nw_out-overlap_out; % next output window
-    n = n+1 % loop counter
-end
-features.saliency = sal;
-%features.intensity = intensity(1:pos_out);
-%features.contrast_temp = contrast_temp(1:pos_out);
-%features.contrast_spec = contrast_spec(1:pos_out);
+spec = log(abs(spec)); % make intensity map
+tmp = Saliency_map(spec,4); % compute saliency map
+features.saliency = tmp.eo + tmp.esi + tmp.epi;
 features.FS = FS_out;
-features.t = t(1:pos_out);
 features.freqs = freqs; % saliency map is stored at half the resolution of the specgram
 
 
@@ -346,12 +299,3 @@ else % 1D (vector)
     env = 0.5 - 0.5 * cos(0:pi/GPts:pi)'; % raised cosine window
     out = in .* [env;ones(length(in)-length(env)*2,1);flipud(env)];
 end
-
-% function [t1,t2] = checktimestamps(t1,t2)
-% % normalize both lists to [0..1]
-% tmp1 = t1-t1(1); tmp1 = tmp1/tmp1(end);
-% tmp2 = t2-t2(1); tmp2 = tmp2/tmp2(end);
-% % go through the longer list and find a timepoint that does not have a
-% % matching point in the other list
-% if length(tmp1) > length(tmp2)
-%     for i = 1: length
