@@ -316,7 +316,7 @@ else
 end
 
 function out = flatten(in,freqs,aweighting)
-% Comput the mean across fregs with or without A-weighting.
+% Compute the mean across fregs with or without A-weighting.
 % in is assumed to be a 2d matrix of time x freq
 if aweighting
     Ra = @(f) (12200^2*f.^4)./( (f.^2*20.6^2) .* sqrt((f.^2+107.7^2).*(f.^2+737.9^2)) .* (f.^2 + 12200^2) ); % A-weights as anonymous function
