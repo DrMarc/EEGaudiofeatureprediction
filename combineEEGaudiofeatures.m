@@ -23,12 +23,6 @@ timestampsAudio = timestampsAudio/decimation_factor;
 % them as channels to the EEG
 [timestampsEEG,FS_EEG,NsamplesEEG] = lcf_getEEGtimestamps(EEGfile);
 
-% translate to common time base (secs from start of recording)
-timestampsAudio_sec = timestampsAudio./FS_audio;
-timestampsEEG_sec = timestampsEEG./FS_EEG;
-disp('Please check timestamps!');
-keyboard; % if they don't line up, do sth like >>timestampsEEG = timestampsEEG([1 2 4 6 7 8]);
-
 % feature vectors and time codes ready to resample and combine with EEG
 features.Elhilali = lcf_extractaudiofeatures_saliencyElhilali(audio(:,1),FS_audio);
 features.Kayser = lcf_extractaudiofeatures_saliencyKayser(audio(:,1),FS_audio);
@@ -249,6 +243,7 @@ EEG = pop_biosig(EEGfile,'channels',[]);
 FS_EEG = EEG.srate;
 NsamplesEEG = EEG.pnts;
 if exist(['.' filesep EEGfile(1:end-4) '-markers.txt'],'file') % read markers from text file
+    disp('Reading markers from text file.')
     timestampsEEG = [];
     n = 1;
     fid = fopen(['.' filesep EEGfile(1:end-4) '-markers.txt'],'r');
@@ -262,6 +257,7 @@ if exist(['.' filesep EEGfile(1:end-4) '-markers.txt'],'file') % read markers fr
     end
     fclose(fid);
 else
+    warning('No text file. Reading markers from BDF file.')
     Nmarkers = length(EEG.event);
     for i = 1:Nmarkers
         timestampsEEG(i) = EEG.event(i).latency; % in samples (FS_EEG) from start
