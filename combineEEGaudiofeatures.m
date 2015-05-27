@@ -38,12 +38,6 @@ features.Elhilali.timestamps = timestampsAudio/(FS_audio/features.Elhilali.FS); 
 % them as channels to the EEG
 [timestampsEEG,FS_EEG,NsamplesEEG] = lcf_getEEGtimestamps(EEGfile);
 
-% translate to common time base (secs from start of recording)
-timestampsAudio_sec = timestampsAudio./FS_audio;
-timestampsEEG_sec = timestampsEEG./FS_EEG;
-disp('Please check timestamps!');
-keyboard; % if they don't line up, do sth like >>timestampsEEG = timestampsEEG([1 2 4 6 7 8]);
-
 % treat the timestamp values as x and y coordinates, then a regression line
 % gives the optimal mapping from feature samples to EEG samples 
 p = polyfit(timestampsEEG,timestampsAudio,1);
