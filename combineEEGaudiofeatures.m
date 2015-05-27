@@ -33,11 +33,6 @@ features.audio.timestamps = timestampsAudio/(FS_audio/features.audio.FS); % same
 features.Kayser.timestamps = timestampsAudio/(FS_audio/features.Kayser.FS); % 
 features.Elhilali.timestamps = timestampsAudio/(FS_audio/features.Elhilali.FS); % same sample rate
 
-% Now get the EEG timestamps
-% the goal is to resample features so that they align with the EEG and add
-% them as channels to the EEG
-[timestampsEEG,FS_EEG,NsamplesEEG] = lcf_getEEGtimestamps(EEGfile);
-
 % treat the timestamp values as x and y coordinates, then a regression line
 % gives the optimal mapping from feature samples to EEG samples 
 p = polyfit(timestampsEEG,timestampsAudio,1);
