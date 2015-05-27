@@ -34,8 +34,8 @@ while response ~= 'y'
     if response == 'y'
         lcf_writelists(timestampsaudio,timestampsEEG,audiomarkerfile,EEGmarkerfile);
     else
-        disp('Select matching points (ex. timepointsEEG = timepointsEEG([1,2,4:8]))');
-        disp('or restore original: timepointsEEG = timepointsEEG_bkp');
+        disp('Select matching points (ex. timestampsEEG = timestampsEEG([1,2,4:8]))');
+        disp('or restore original: timestampsEEG = timestampsEEG_bkp');
         disp('or type "dbquit" to exit without changes.');
         keyboard;
     end
