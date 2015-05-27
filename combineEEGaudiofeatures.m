@@ -35,7 +35,7 @@ features.Elhilali.timestamps = timestampsAudio/(FS_audio/features.Elhilali.FS); 
 
 % treat the timestamp values as x and y coordinates, then a regression line
 % gives the optimal mapping from feature samples to EEG samples 
-p = polyfit(timestampsEEG,timestampsAudio,1);
+p = polyfit(timestampsEEG,timestampsAudio',1);
 % calculate mean deviation as sanity check
 fitted_timestampsAudio = polyval(p,timestampsEEG);
 standart_deviation = sqrt(sum(((fitted_timestampsAudio - timestampsAudio)/FS_audio).^2)) % in sec
