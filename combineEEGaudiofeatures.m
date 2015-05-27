@@ -23,12 +23,6 @@ timestampsAudio = timestampsAudio/decimation_factor;
 % them as channels to the EEG
 [timestampsEEG,FS_EEG,NsamplesEEG] = lcf_getEEGtimestamps(EEGfile);
 
-% translate to common time base (secs from start of recording)
-timestampsAudio_sec = timestampsAudio./FS_audio;
-timestampsEEG_sec = timestampsEEG./FS_EEG;
-disp('Please check timestamps!');
-keyboard; % if they don't line up, do sth like >>timestampsEEG = timestampsEEG([1 2 4 6 7 8]);
-
 % feature vectors and time codes ready to resample and combine with EEG
 features.Elhilali = lcf_extractaudiofeatures_saliencyElhilali(audio(:,1),FS_audio);
 features.Kayser = lcf_extractaudiofeatures_saliencyKayser(audio(:,1),FS_audio);
