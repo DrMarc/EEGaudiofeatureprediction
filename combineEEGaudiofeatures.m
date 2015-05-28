@@ -5,8 +5,10 @@ function features = combineEEGaudiofeatures(EEGfile,audiofile)
 % read the audio data
 [audio,FS_audio,~,opt_ck] = my_wavread(audiofile); % using the extended wavread that can load CUE points
 if exist(['.' filesep audiofile(1:end-4) '-wavmarkers.txt'],'file') % read markers from text file
+    disp('Reading audio timestamps from text file.')
     timestampsAudio = load(['.' filesep audiofile(1:end-4) '-wavmarkers.txt']);
 else
+    warning('Reading audio timestamps from WAV file.')
     timestampsAudio = opt_ck.cue_sampleoffset;
 end
 decimation_factor = 6; % decimate a 48k recording to 8k
@@ -35,10 +37,10 @@ features.Elhilali.timestamps = timestampsAudio/(FS_audio/features.Elhilali.FS); 
 
 % treat the timestamp values as x and y coordinates, then a regression line
 % gives the optimal mapping from feature samples to EEG samples 
-p = polyfit(timestampsEEG,timestampsAudio',1);
+p = polyfit(timestampsEEG,timestampsAudio,1);
 % calculate mean deviation as sanity check
 fitted_timestampsAudio = polyval(p,timestampsEEG);
-standart_deviation = sqrt(sum(((fitted_timestampsAudio - timestampsAudio)/FS_audio).^2)) % in sec
+standard_deviation = sqrt(sum(((fitted_timestampsAudio - timestampsAudio)/FS_audio).^2)) % in sec
 figure;
 plot(timestampsEEG/FS_EEG,timestampsAudio/FS_audio,'bo',timestampsEEG/FS_EEG,fitted_timestampsAudio/FS_audio,'r-');
 xlabel('timestamps EEG');
@@ -57,10 +59,10 @@ features.audio.mapped2EEG.ITD = interp2(features.audio.ITD,X,mappedSamplesFeatue
 features.audio.mapped2EEG.ILD = interp2(features.audio.ILD,X,mappedSamplesFeatues2EEG,'cubic',NaN);
 features.audio.mapped2EEG.onsets = interp2(features.audio.onsets,X,mappedSamplesFeatues2EEG,'cubic',NaN);
 features.audio.mapped2EEG.offsets = interp2(features.audio.offsets,X,mappedSamplesFeatues2EEG,'cubic',NaN);
-features.audio.mapped2EEG.spectral_centroid = interp1(Y,features.audio.spectral_centroid,mappedSamplesFeatues2EEG,'cubic',NaN);
-features.audio.mapped2EEG.spectral_brightness = interp1(Y,features.audio.spectral_brightness,mappedSamplesFeatues2EEG,'cubic',NaN);
-features.audio.mapped2EEG.spectral_flux = interp1(Y,features.audio.spectral_flux,mappedSamplesFeatues2EEG,'cubic',NaN);
-% audio features are smaple accurate
+features.audio.mapped2EEG.spectral_centroid = interp1(Y,features.audio.spectral_centroid,mappedSamplesFeatues2EEG,'pchip',NaN);
+features.audio.mapped2EEG.spectral_brightness = interp1(Y,features.audio.spectral_brightness,mappedSamplesFeatues2EEG,'pchip',NaN);
+features.audio.mapped2EEG.spectral_flux = interp1(Y,features.audio.spectral_flux,mappedSamplesFeatues2EEG,'pchip',NaN);
+% audio features are sample accurate
 
 % same for Kayser saliency
 mappedSamplesFeatues2EEG = polyval(features.Kayser.p,1:NsamplesEEG);
@@ -72,12 +74,12 @@ features.Kayser.mapped2EEG.saliency = interp2(features.Kayser.saliency',X,mapped
 % same for Elhilali features (all 1D)
 mappedSamplesFeatues2EEG = polyval(features.Elhilali.p,1:NsamplesEEG);
 Y = 1:size(features.Elhilali.saliency',1);
-features.Elhilali.mapped2EEG.saliency = interp1(Y,features.Elhilali.saliency',mappedSamplesFeatues2EEG,'cubic',NaN);
-features.Elhilali.mapped2EEG.envelope = interp1(Y,features.Elhilali.envelope',mappedSamplesFeatues2EEG,'cubic',NaN);
-features.Elhilali.mapped2EEG.pitch = interp1(Y,features.Elhilali.pitch',mappedSamplesFeatues2EEG,'cubic',NaN);
-features.Elhilali.mapped2EEG.specgram = interp1(Y,features.Elhilali.specgram',mappedSamplesFeatues2EEG,'cubic',NaN);
-features.Elhilali.mapped2EEG.bw = interp1(Y,features.Elhilali.bw',mappedSamplesFeatues2EEG,'cubic',NaN);
-features.Elhilali.mapped2EEG.rate = interp1(Y,features.Elhilali.rate',mappedSamplesFeatues2EEG,'cubic',NaN);
+features.Elhilali.mapped2EEG.saliency = interp1(Y,features.Elhilali.saliency',mappedSamplesFeatues2EEG,'pchip',NaN);
+features.Elhilali.mapped2EEG.envelope = interp1(Y,features.Elhilali.envelope',mappedSamplesFeatues2EEG,'pchip',NaN);
+features.Elhilali.mapped2EEG.pitch = interp1(Y,features.Elhilali.pitch',mappedSamplesFeatues2EEG,'pchip',NaN);
+features.Elhilali.mapped2EEG.specgram = interp1(Y,features.Elhilali.specgram',mappedSamplesFeatues2EEG,'pchip',NaN);
+features.Elhilali.mapped2EEG.bw = interp1(Y,features.Elhilali.bw',mappedSamplesFeatues2EEG,'pchip',NaN);
+features.Elhilali.mapped2EEG.rate = interp1(Y,features.Elhilali.rate',mappedSamplesFeatues2EEG,'pchip',NaN);
 % Elhilali features appear to be shifted forward in time by 2 samples!
 % Elhilali saliency has 3 peaks with 2-sample-or-so diff before onset of
 % salient tone! 
@@ -245,6 +247,7 @@ if exist(['.' filesep EEGfile(1:end-4) '-markers.txt'],'file') % read markers fr
         n = n+1;
     end
     fclose(fid);
+    timestampsEEG = timestampsEEG';
 else
     warning('No text file. Reading markers from BDF file.')
     Nmarkers = length(EEG.event);
