@@ -145,19 +145,19 @@ managerObj.processSignal(); % Request processing
 % postprocess features
 freqs = dataObj.gammatone{1}.cfHz;
 ITDs = dataObj.itd{1}.Data(:);
-features.ITD = ITDs;
+features.ITD = single(ITDs);
 ILDs = dataObj.ild{1}.Data(:);
 ILDs(ILDs<-10) = -10; % clip at 10dB (20dB range) to limi the influence of artifacts
 ILDs(ILDs>10) = 10;
-features.ILD = ILDs;
+features.ILD = single(ILDs);
 onsets  = dataObj.onset_map{1}.Data(:);
-features.onsets = onsets;
+features.onsets = single(onsets);
 offsets = dataObj.offset_map{1}.Data(:);
-features.offsets = offsets;
+features.offsets = single(offsets);
 tmp = dataObj.spectral_features{1}.Data(:);
-features.spectral_centroid  = tmp(:,1);
-features.spectral_brightness = tmp(:,3);
-features.spectral_flux      = tmp(:,13);
+features.spectral_centroid  = single(tmp(:,1));
+features.spectral_brightness = single(tmp(:,3));
+features.spectral_flux      = single(tmp(:,13));
 features.FS = dataObj.itd{1}.FsHz;
 features.freqs = freqs;
 features.t = (0:length(features.ITD)-1)/features.FS;
@@ -175,7 +175,7 @@ nfreqs = length(freqs); % number of freqs in each window
 tw = tw(1:2:end); % saliency map is stored at half the time resolution of the specgram
 spec = log(abs(spec)); % make intensity map
 tmp = Saliency_map(spec,4); % compute saliency map
-features.saliency = tmp.eo + tmp.esi + tmp.epi;
+features.saliency = single(tmp.eo + tmp.esi + tmp.epi);
 features.FS = FS_out;
 features.freqs = freqs; % saliency map is stored at half the resolution of the specgram
 
@@ -221,12 +221,12 @@ while (pos+nw-1 <= nx) % while enough signal left
     pos_out = pos_out+ntw-overlap_out; % next output window
     n = n+1 % loop counter
 end
-features.saliency = sal;
-features.envelope = streams(1,:);
-features.pitch = streams(1,:);
-features.specgram = streams(1,:);
-features.bw = streams(1,:);
-features.rate = streams(1,:);
+features.saliency = single(sal);
+features.envelope = single(streams(1,:));
+features.pitch = single(streams(2,:));
+features.specgram = single(streams(3,:));
+features.bw = single(streams(4,:));
+features.rate = single(streams(5,:));
 features.FS = FS_out;
 
 function [timestampsEEG,FS_EEG,NsamplesEEG] = lcf_getEEGtimestamps(EEGfile)
