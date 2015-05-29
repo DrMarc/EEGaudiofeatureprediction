@@ -9,7 +9,10 @@ end
 switch step
     case 1
         disp('Step 1: Manual pruning of continuous data');
+        [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
         EEG = pop_biosig(eegfile,'channels',[1:3,8:22]);
+        [ALLEEG,EEG,CURRENTSET] = eeg_store(ALLEEG,EEG,0);
+        
         %EEG = pop_loadset('filename',sprintf('%s_step1.set',eegfile(1:end-4)));
         labels = {'R5','R3','R1','R2','R4','R6','R8','R7','L7','L5','L4a','L3','L1','L2','L4','L4b','L6','L8'}
         for c=1:length(EEG.chanlocs)
@@ -27,13 +30,15 @@ switch step
         EEG.setname='Step1result';
 
         % now reject by eye
-        pop_eegplot(EEG,1,1,1);
+        pop_eegplot(EEG,1,1,1); 
         badchans = input('Bad channels? [f.i. [1 5 9] or leave blank]:');
         if badchans
             % remove bad channels
             EEG = pop_select(EEG,'nochannel',badchans);
             EEG.badchan = badchans;
         end
+        EEG = eeg_checkset(EEG);
+        EEG = pop_saveset(EEG,'filename',sprintf('%s_step1.set',eegfile(1:end-4)),'filepath','.');
         
         % save list of deletions (start and duration in samples)
         del = []; % deletions [start,duration]
@@ -48,10 +53,6 @@ switch step
         fid = fopen(sprintf('%s_step1_rejected.txt',eegfile(1:end-4)),'wt');
         fprintf(fid,'%i\t%i\n',del);
         fclose(fid);
-        
-        % save pruned data set
-        EEG = eeg_checkset(EEG);
-        EEG = pop_saveset(EEG,'filename',sprintf('%s_step1.set',eegfile(1:end-4)),'filepath','.');
         close_down
 
     case 2
@@ -65,7 +66,9 @@ switch step
     
     case 3
         disp('Step 3: Prune ICA activations');
+        [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
         EEG = pop_loadset(sprintf('%s_step2.set',eegfile(1:end-4)));
+        [ALLEEG,EEG,CURRENTSET] = eeg_store(ALLEEG,EEG,0);
         pop_eegplot(EEG,0,1,1);
         
         % save list of deletions (start and duration in samples)
