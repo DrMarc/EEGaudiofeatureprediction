@@ -46,8 +46,8 @@ switch step
         del = []; % deletions [start,duration]
         for i = 1:length(EEG.event)
             if strcmp(EEG.event(i).type,'boundary') && ~isnan(EEG.event(i).duration)
-                start = EEG.event(i).latency;
-                dur =   EEG.event(i).duration;
+                start = round(EEG.event(i).latency);
+                dur =   round(EEG.event(i).duration);
                 del = vertcat(del,[start dur]);
             end
         end
@@ -62,6 +62,7 @@ switch step
         EEG = pop_loadset(sprintf('%s_step1.set',eegfile(1:end-4)));
         % run ICA on pruned data
         EEG = pop_runica(EEG,'extended',1,'interupt','off');
+        EEG.setname='Step2result';
         EEG = eeg_checkset(EEG);
         EEG = pop_saveset(EEG,'filename',sprintf('%s_step2.set',eegfile(1:end-4)),'filepath','.');
         %pop_expica(EEG,'weights','/Users/marc/Documents/MATLAB/marc_bus1_ICA.txt');
@@ -71,6 +72,13 @@ switch step
         [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
         EEG = pop_loadset(sprintf('%s_step2.set',eegfile(1:end-4)));
         [ALLEEG,EEG,CURRENTSET] = eeg_store(ALLEEG,EEG,0);
+        EEG.setname='Step3result';
+        % rename old boundary events
+        for i = 1:length(EEG.event)
+            if strcmp(EEG.event(i).type,'boundary')
+                EEG.event(i).type = 'boundary_old';
+            end
+        end
         pop_eegplot(EEG,0,1,1);
         assignin('base','EEG',EEG); % move EEG variable to base workspace because pop_eegplot is not blocking
         uiwait;
@@ -80,9 +88,15 @@ switch step
         del = []; % deletions [start,duration]
         for i = 1:length(EEG.event)
             if strcmp(EEG.event(i).type,'boundary') && ~isnan(EEG.event(i).duration)
-                start = EEG.event(i).latency;
-                dur =   EEG.event(i).duration;
+                start = round(EEG.event(i).latency);
+                dur = round(EEG.event(i).duration);
                 del = vertcat(del,[start dur]);
+            end
+        end
+        % revert renaming of old boundary events
+        for i = 1:length(EEG.event)
+            if strcmp(EEG.event(i).type,'boundary_old')
+                EEG.event(i).type = 'boundary';
             end
         end
         % write to file
