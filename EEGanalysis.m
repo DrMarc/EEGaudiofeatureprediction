@@ -10,13 +10,8 @@ switch step
     case 1
         global EEG
         disp('Step 1: Manual pruning of continuous data');
-        [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
         EEG = pop_biosig(eegfile,'channels',[1:3,8:22]);
-        [ALLEEG,EEG,CURRENTSET] = eeg_store(ALLEEG,EEG,0);
-        labels = {'R5','R3','R1','R2','R4','R6','R8','R7','L7','L5','L4a','L3','L1','L2','L4','L4b','L6','L8'}
-        for c=1:length(EEG.chanlocs)
-            EEG.chanlocs(c).labels = labels{c}; 
-        end
+        EEG.chanlocs = readlocs('chanlocs.ced'); 
 
         % rereference to linked mastoids
         EEG.data(16,:) = EEG.data(16,:)/2;
@@ -69,9 +64,7 @@ switch step
     
     case 3
         disp('Step 3: Prune ICA activations');
-        [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
         EEG = pop_loadset(sprintf('%s_step2.set',eegfile(1:end-4)));
-        [ALLEEG,EEG,CURRENTSET] = eeg_store(ALLEEG,EEG,0);
         EEG.setname='Step3result';
         % rename old boundary events
         for i = 1:length(EEG.event)
@@ -120,11 +113,13 @@ switch step
             [ALLEEG, EEG, CURRENTSET] = eeg_store(ALLEEG,EEG,0);
         end
         EEG = pop_mergeset(ALLEEG,[1:nfiles],0);
-        EEG = pop_saveset(EEG,'filename',sprintf('%s_step4.set',[FileName{1}(1:end-4)]),'filepath','.');
+        EEG = pop_saveset(EEG,'filename',sprintf('%s_step4.set',[eegfile(1:end-4)]),'filepath','.');
         
         % save list of files for later use
         fid = fopen(sprintf('%s_step4_filelist.txt',eegfile(1:end-4)),'wt');
-        fprintf(fid,'%s ',FileName);
+        for i = 1:1:nfiles
+            fprintf(fid,'%s ',FileName{i});
+        end
         fclose(fid);
         close_down;
         
@@ -134,38 +129,76 @@ switch step
         EEG = pop_runica(EEG,'extended',1,'interupt','off');
         EEG = eeg_checkset(EEG);
         EEG = pop_saveset(EEG,'filename',sprintf('%s_step5.set',eegfile(1:end-4)),'filepath','.');
-        % export activation as matrix for integration with features
-        icaact = EEG.icaact;
-        save(sprintf('%s_icaact.txt',eegfile(1:end-4)),'icaact');
-        
+%         % export ICA weights
+%         icasphere = EEG.icasphere;
+%         icaweights = EEG.icaweights;
+%         icaact = EEG.icaact;
+%         save(sprintf('%s_ica',eegfile(1:end-4)),'icasphere','icaweights','icaact');
+%         %pop_expica(EEG,'weights',sprintf('%s_icaweights',eegfile(1:end-4)));
+    
     case 6
-        disp('Step 6: Compute ICA activations of original data');
-        % re-merge original files
-        % get file list
-        fid = fopen(sprintf('%s_step4_filelist.txt',eegfile(1:end-4)),'r');
-        files = fgetl(fid);
-        fclose(fid);
-        files = strread(files,'%s','delimiter',' ');
-        % load and merge
+        disp('Step 6: Select ICs');
         [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
-        nfiles = length(files);
-        for i = 1:nfiles;
-            EEG = pop_loadset(files{i});
-            [ALLEEG, EEG, CURRENTSET] = eeg_store(ALLEEG,EEG,0);
+        EEG = pop_loadset(sprintf('%s_step5.set',eegfile(1:end-4)));
+        if isempty(EEG.chanlocs(1).X); % no coordinates loaded
+            EEG = pop_chanedit(EEG,'lookup','chanlocs.ced');
         end
-        EEG = pop_mergeset(ALLEEG,[1:nfiles],0);
-        % run ICA
-        EEG = pop_runica(EEG,'extended',1,'interupt','off');
+        [ALLEEG, EEG, CURRENTSET] = eeg_store(ALLEEG,EEG,0);
+        ncomp = size(EEG.icaweights,1);
+        % plot activations
+        pop_eegplot(EEG,0,0,0);
+        % plot IC topo at 10 Hz
+        %dur = (size(EEG.icaact,2)/EEG.srate)*1000-2; % data length in ms
+        %figure; pop_spectopo(EEG,0,[0 dur],'EEG','freq',[10],'plotchan',0,'percent',100,'icacomps',[1:ncomp],'nicamaps',ncomp,'freqrange',[1 30],'electrodes','off');
+        % topoplot all ICs
+        pop_selectcomps(EEG,[1:ncomp]);
+        assignin('base','EEG',EEG); % move EEG variable to base workspace because pop_eegplot is not blocking
+        assignin('base','ALLEEG',ALLEEG); %
+        uiwait(gcf);
+        EEG = evalin('base','EEG'); % recover modified EEG variable from base workspace
+        ALLEEG = evalin('base','ALLEEG');
+        % rejected ICs now in EEG.reject.gcompreject
         EEG = eeg_checkset(EEG);
-        pop_saveset(EEG,'filename',sprintf('%s_step6.set',eegfile(1:end-4)),'filepath','.');
-        %pop_expica(EEG,'weights',sprintf('%s_ICA.txt',eegfile(1:end-4)));
-        % export activation as matrix for integration with features
-        icaact = EEG.icaact;
-        save(sprintf('%s_ICA.txt',eegfile(1:end-4)),'icaact');
+        EEG = pop_saveset(EEG,'filename',sprintf('%s_step6.set',eegfile(1:end-4)),'filepath','.');
+        % save accepted IC activations
+        good_ICs = find(EEG.reject.gcompreject==0);
+        icaact = EEG.icaact(good_ICs,:);
+        save(sprintf('%s_step6_icaact',eegfile(1:end-4)),'icaact','good_ICs');
+        close_down;
+        
+%     case 6
+%         disp('Step 6: Apply ICA weights to original data');
+%         % re-merge original files
+%         % get file list
+%         fid = fopen(sprintf('%s_step4_filelist.txt',eegfile(1:end-4)),'r');
+%         files = fgetl(fid);
+%         fclose(fid);
+%         files = strread(files,'%s','delimiter',' ');
+%         % load and merge
+%         [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
+%         nfiles = length(files);
+%         for i = 1:nfiles;
+%             EEG = pop_loadset(files{i});
+%             [ALLEEG, EEG, CURRENTSET] = eeg_store(ALLEEG,EEG,0);
+%         end
+%         EEG = pop_mergeset(ALLEEG,[1:nfiles],0);
+%         % load previous ICA weights and recompute activations
+%         ICA = load(sprintf('%s_icaweights',eegfile(1:end-4)));
+%         EEG.icasphere = icasphere;
+%         EEG.icaweights = icaweights;
+%         EEG = eeg_checkset(EEG);
+%         pop_saveset(EEG,'filename',sprintf('%s_step6.set',eegfile(1:end-4)),'filepath','.');
+%         % recompute and export activation as matrix for integration with features
+%         %pop_eegplot(EEG,0,0,0);
+%         %pop_export(EEG,sprintf('%s_ICA.txt',eegfile(1:end-4)),'ica','on');
+%         %icaact = EEG.icaact;
+%         %save(sprintf('%s_ICA.txt',eegfile(1:end-4)),'icaact');
         
     case 7
-        disp('Step 7: Remove rejected data from features and ICAactivations');
+        disp('Step 7: Remove rejected data from features');
         disp('The result should be aligned features and ICA ready for machine learning');
+        load(sprintf('%s-features.mat',eegfile(1:end-4)));
+        % construct vector of non-rejected sample points
         
         
 end
