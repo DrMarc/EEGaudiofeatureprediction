@@ -84,23 +84,6 @@ features.Elhilali.mapped2EEG.rate = interp1(Y,features.Elhilali.rate',mappedSamp
 % Elhilali saliency has 3 peaks with 2-sample-or-so diff before onset of
 % salient tone! 
 
-% calculate and save scaling factors to normalize standard dev of each
-% feature to 1; these are stand-ins or the normalized features that will be calculated when needed
-features.audio.mapped2EEG.norm.ITD = [-nanmean(features.audio.mapped2EEG.ITD(:)) 1/nanstd(features.audio.mapped2EEG.ITD(:))];
-features.audio.mapped2EEG.norm.ILD = [-nanmean(features.audio.mapped2EEG.ILD(:)) 1/nanstd(features.audio.mapped2EEG.ILD(:))];
-features.audio.mapped2EEG.norm.onsets = [-nanmean(features.audio.mapped2EEG.onsets(:)) 1/nanstd(features.audio.mapped2EEG.onsets(:))];
-features.audio.mapped2EEG.norm.offsets = [-nanmean(features.audio.mapped2EEG.offsets(:)) 1/nanstd(features.audio.mapped2EEG.offsets(:))];
-features.audio.mapped2EEG.norm.spectral_centroid = [-nanmean(features.audio.mapped2EEG.spectral_centroid) 1/nanstd(features.audio.mapped2EEG.spectral_centroid)];
-features.audio.mapped2EEG.norm.spectral_brightness = [-nanmean(features.audio.mapped2EEG.spectral_brightness) 1/nanstd(features.audio.mapped2EEG.spectral_brightness)];
-features.audio.mapped2EEG.norm.spectral_flux = [-nanmean(features.audio.mapped2EEG.spectral_flux) 1/nanstd(features.audio.mapped2EEG.spectral_flux)];
-features.Kayser.mapped2EEG.norm.saliency = [-nanmean(features.Kayser.mapped2EEG.saliency(:)) 1/nanstd(features.Kayser.mapped2EEG.saliency(:))];
-features.Elhilali.mapped2EEG.norm.saliency = [-nanmean(features.Elhilali.mapped2EEG.saliency) 1/nanstd(features.Elhilali.mapped2EEG.saliency)];
-features.Elhilali.mapped2EEG.norm.envelope = [-nanmean(features.Elhilali.mapped2EEG.envelope) 1/nanstd(features.Elhilali.mapped2EEG.envelope)];
-features.Elhilali.mapped2EEG.norm.pitch = [-nanmean(features.Elhilali.mapped2EEG.pitch) 1/nanstd(features.Elhilali.mapped2EEG.pitch)];
-features.Elhilali.mapped2EEG.norm.specgram = [-nanmean(features.Elhilali.mapped2EEG.specgram) 1/nanstd(features.Elhilali.mapped2EEG.specgram)];
-features.Elhilali.mapped2EEG.norm.bw = [-nanmean(features.Elhilali.mapped2EEG.bw) 1/nanstd(features.Elhilali.mapped2EEG.bw)];
-features.Elhilali.mapped2EEG.norm.rate = [-nanmean(features.Elhilali.mapped2EEG.rate) 1/nanstd(features.Elhilali.mapped2EEG.rate)];
-
 
 %%% local functions %%%
 
