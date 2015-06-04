@@ -38,17 +38,14 @@ switch step
         EEG = pop_saveset(EEG,'filename',sprintf('%s_step1.set',eegfile(1:end-4)),'filepath','.');
         
         % save list of deletions (start and duration in samples)
-        del = []; % deletions [start,duration]
+        fid = fopen(sprintf('%s_step1_rejected.txt',eegfile(1:end-4)),'wt');
         for i = 1:length(EEG.event)
             if strcmp(EEG.event(i).type,'boundary') && ~isnan(EEG.event(i).duration)
                 start = round(EEG.event(i).latency);
-                dur =   round(EEG.event(i).duration);
-                del = vertcat(del,[start dur]);
+                dur = round(EEG.event(i).duration);
+                fprintf(fid,'%i\t%i\n',start,dur);
             end
         end
-        % write to file
-        fid = fopen(sprintf('%s_step1_rejected.txt',eegfile(1:end-4)),'wt');
-        fprintf(fid,'%i\t%i\n',del);
         fclose(fid);
         close_down
 
@@ -78,24 +75,21 @@ switch step
         EEG = evalin('base','EEG'); % recover modified EEG variable from base workspace
         
         % save list of deletions (start and duration in samples)
-        del = []; % deletions [start,duration]
+        fid = fopen(sprintf('%s_step3_rejected.txt',eegfile(1:end-4)),'wt');
         for i = 1:length(EEG.event)
             if strcmp(EEG.event(i).type,'boundary') && ~isnan(EEG.event(i).duration)
                 start = round(EEG.event(i).latency);
                 dur = round(EEG.event(i).duration);
-                del = vertcat(del,[start dur]);
+                fprintf(fid,'%i\t%i\n',start,dur);
             end
         end
+        fclose(fid);
         % revert renaming of old boundary events
         for i = 1:length(EEG.event)
             if strcmp(EEG.event(i).type,'boundary_old')
                 EEG.event(i).type = 'boundary';
             end
         end
-        % write to file
-        fid = fopen(sprintf('%s_step3_rejected.txt',eegfile(1:end-4)),'wt');
-        fprintf(fid,'%i\t%i\n',del);
-        fclose(fid);
         
         % save pruned data set
         EEG = eeg_checkset(EEG);
@@ -129,12 +123,6 @@ switch step
         EEG = pop_runica(EEG,'extended',1,'interupt','off');
         EEG = eeg_checkset(EEG);
         EEG = pop_saveset(EEG,'filename',sprintf('%s_step5.set',eegfile(1:end-4)),'filepath','.');
-%         % export ICA weights
-%         icasphere = EEG.icasphere;
-%         icaweights = EEG.icaweights;
-%         icaact = EEG.icaact;
-%         save(sprintf('%s_ica',eegfile(1:end-4)),'icasphere','icaweights','icaact');
-%         %pop_expica(EEG,'weights',sprintf('%s_icaweights',eegfile(1:end-4)));
     
     case 6
         disp('Step 6: Select ICs');
@@ -166,41 +154,7 @@ switch step
         save(sprintf('%s_step6_icaact',eegfile(1:end-4)),'icaact','good_ICs');
         close_down;
         
-%     case 6
-%         disp('Step 6: Apply ICA weights to original data');
-%         % re-merge original files
-%         % get file list
-%         fid = fopen(sprintf('%s_step4_filelist.txt',eegfile(1:end-4)),'r');
-%         files = fgetl(fid);
-%         fclose(fid);
-%         files = strread(files,'%s','delimiter',' ');
-%         % load and merge
-%         [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
-%         nfiles = length(files);
-%         for i = 1:nfiles;
-%             EEG = pop_loadset(files{i});
-%             [ALLEEG, EEG, CURRENTSET] = eeg_store(ALLEEG,EEG,0);
-%         end
-%         EEG = pop_mergeset(ALLEEG,[1:nfiles],0);
-%         % load previous ICA weights and recompute activations
-%         ICA = load(sprintf('%s_icaweights',eegfile(1:end-4)));
-%         EEG.icasphere = icasphere;
-%         EEG.icaweights = icaweights;
-%         EEG = eeg_checkset(EEG);
-%         pop_saveset(EEG,'filename',sprintf('%s_step6.set',eegfile(1:end-4)),'filepath','.');
-%         % recompute and export activation as matrix for integration with features
-%         %pop_eegplot(EEG,0,0,0);
-%         %pop_export(EEG,sprintf('%s_ICA.txt',eegfile(1:end-4)),'ica','on');
-%         %icaact = EEG.icaact;
-%         %save(sprintf('%s_ICA.txt',eegfile(1:end-4)),'icaact');
-        
-    case 7
-        disp('Step 7: Remove rejected data from features');
-        disp('The result should be aligned features and ICA ready for machine learning');
-        load(sprintf('%s-features.mat',eegfile(1:end-4)));
-        % construct vector of non-rejected sample points
-        
-        
+
 end
 
 function close_down
