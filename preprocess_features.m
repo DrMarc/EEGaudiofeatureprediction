@@ -25,18 +25,40 @@ for i = 1:length(files)-1
         remaining_samples = setdiff(remaining_samples,deleted);
     end
     % delete those samples from each entry in features.X.mapped2EEG and
-    % save as new feature vectors
-    featurevec(:,1:16) = features.audio.mapped2EEG.ITD(remaining_samples,:);
+    % save as new feature vector, all in one large matrix (samples x features)
+    % also save a cell array of feature names and frequencies corresponding
+    % to the rows of the feature vector
+    fields = fieldnames(features.audio.mapped2EEG);
+    featurenames = {};
+    pos = 1;
+    for i = 1:length(fields);
+        if eval(sprintf('isstruct(features.audio.mapped2EEG.%s)',fields{i})) % necessary because of 'norm' field (struct, but no feature)
+            continue;
+        else
+            len = eval(sprintf('min(size(features.audio.mapped2EEG.%s))',fields{i}));
+            if len > 1
+                eval(sprintf('featurevec(:,pos:pos+len-1) = features.audio.mapped2EEG.%s(remaining_samples,:);',fields{i}));
+                for k = 0:len-1
+                    featurenames{pos+k} = sprintf('%s %i',fields{i},round(features.audio.freqs(k+1)));
+                end 
+            else
+                eval('featurevec(:,pos) = features.audio.mapped2EEG.%s(remaining_samples,:);',fields{i});
+                featurenames{pos} = fields{i};
+            end
+            pos = pos + len;
+        end
+    end % end of loop through all audio fields in one run 
+    
+    % Now do the same for Kayser saliency (only one field, so we do that explicitely)
+    len = min(size(features.Kayser.mapped2EEG.saliency;
+    featurevec(:,pos:pos+len-1) = features.Kayser.mapped2EEG.saliency;
+    for k = 0:len-1
+        featurenames{pos+k} = sprintf('Kayser_saliency %i',round(features.Kayser.freqs(k+1)));
+    end 
+    
+    % Now do the same for Elhilali saliency
+    
 end
-
-featurevec(:,17:) = features.audio.mapped2EEG.ILD(remaining_samples,:);
-features_trimmed.audio.onsets = features.audio.mapped2EEG.onsets(remaining_samples,:);
-features_trimmed.audio.offsets = features.audio.mapped2EEG.offsets(remaining_samples,:);
-features_trimmed.audio.spectral_centroid = features.audio.mapped2EEG.spectral_centroid(remaining_samples);
-features_trimmed.audio.spectral_brightness = features.audio.mapped2EEG.spectral_brightness(remaining_samples);
-features_trimmed.audio.spectral_flux = features.audio.mapped2EEG.spectral_flux(remaining_samples);
-
-features_trimmed.Kayser.saliency = features.audio.mapped2EEG.ITD(remaining_samples,:);
         
 
 
