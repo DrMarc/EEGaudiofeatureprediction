@@ -28,54 +28,51 @@ for i = 1:length(files)-1
     % save as new feature vector, all in one large matrix (samples x features)
     % also save a cell array of feature names and frequencies corresponding
     % to the rows of the feature vector
-    fields = fieldnames(features.audio.mapped2EEG);
-    featurenames = {};
-    pos = 1;
-    for i = 1:length(fields);
-        if eval(sprintf('isstruct(features.audio.mapped2EEG.%s)',fields{i})) % necessary because of 'norm' field (struct, but no feature)
-            continue;
-        else
-            len = eval(sprintf('min(size(features.audio.mapped2EEG.%s))',fields{i}));
-            if len > 1
-                eval(sprintf('featurevec(:,pos:pos+len-1) = features.audio.mapped2EEG.%s(remaining_samples,:);',fields{i}));
-                for k = 0:len-1
-                    featurenames{pos+k} = sprintf('%s %i',fields{i},round(features.audio.freqs(k+1)));
-                end 
+    highlevel_fields = fieldnames(features); % should be {'Elhilali','Kayser','audio'}
+    for f = 1:length(highlevel_fields);
+        fields = eval(sprintf('fieldnames(features.%s.mapped2EEG)',highlevel_fields{f}));
+        featurenames = {};
+        pos = 1;
+        for i = 1:length(fields);
+            if eval(sprintf('isstruct(features.%s.mapped2EEG.%s)',highlevel_fields{f},fields{i})) % necessary because of 'norm' field (struct, but no feature)
+                continue;
             else
-                eval('featurevec(:,pos) = features.audio.mapped2EEG.%s(remaining_samples,:);',fields{i});
-                featurenames{pos} = fields{i};
+                len = eval(sprintf('min(size(features.%s.mapped2EEG.%s))',highlevel_fields{f},fields{i}));
+                if len > 1
+                    eval(sprintf('featurevec(:,pos:pos+len-1) = features.%s.mapped2EEG.%s(remaining_samples,:);',highlevel_fields{f},fields{i}));
+                    for k = 0:len-1
+                        featurenames{pos+k} = sprintf('%s %i',fields{i},round(features.audio.freqs(k+1)));
+                    end 
+                else
+                    eval(sprintf('featurevec(:,pos) = features.%s.mapped2EEG.%s(remaining_samples,:);',highlevel_fields{f},fields{i}));
+                    featurenames{pos} = fields{i};
+                end
+                pos = pos + len;
             end
-            pos = pos + len;
-        end
-    end % end of loop through all audio fields in one run 
+        end % end of loop through all audio fields in one run 
+    end
     
-    % Now do the same for Kayser saliency (only one field, so we do that explicitely)
-    len = min(size(features.Kayser.mapped2EEG.saliency;
-    featurevec(:,pos:pos+len-1) = features.Kayser.mapped2EEG.saliency;
-    for k = 0:len-1
-        featurenames{pos+k} = sprintf('Kayser_saliency %i',round(features.Kayser.freqs(k+1)));
-    end 
-    
-    % Now do the same for Elhilali saliency
+    % Up to now featurevec and featurenames get overwritten for each new
+    % run - fix!
     
 end
         
 
 
-% calculate and save scaling factors to normalize standard dev of each
-% feature to 1; these are stand-ins or the normalized features that will be calculated when needed
-features.audio.mapped2EEG.norm.ITD = [-nanmean(features.audio.mapped2EEG.ITD(:)) 1/nanstd(features.audio.mapped2EEG.ITD(:))];
-features.audio.mapped2EEG.norm.ILD = [-nanmean(features.audio.mapped2EEG.ILD(:)) 1/nanstd(features.audio.mapped2EEG.ILD(:))];
-features.audio.mapped2EEG.norm.onsets = [-nanmean(features.audio.mapped2EEG.onsets(:)) 1/nanstd(features.audio.mapped2EEG.onsets(:))];
-features.audio.mapped2EEG.norm.offsets = [-nanmean(features.audio.mapped2EEG.offsets(:)) 1/nanstd(features.audio.mapped2EEG.offsets(:))];
-features.audio.mapped2EEG.norm.spectral_centroid = [-nanmean(features.audio.mapped2EEG.spectral_centroid) 1/nanstd(features.audio.mapped2EEG.spectral_centroid)];
-features.audio.mapped2EEG.norm.spectral_brightness = [-nanmean(features.audio.mapped2EEG.spectral_brightness) 1/nanstd(features.audio.mapped2EEG.spectral_brightness)];
-features.audio.mapped2EEG.norm.spectral_flux = [-nanmean(features.audio.mapped2EEG.spectral_flux) 1/nanstd(features.audio.mapped2EEG.spectral_flux)];
-features.Kayser.mapped2EEG.norm.saliency = [-nanmean(features.Kayser.mapped2EEG.saliency(:)) 1/nanstd(features.Kayser.mapped2EEG.saliency(:))];
-features.Elhilali.mapped2EEG.norm.saliency = [-nanmean(features.Elhilali.mapped2EEG.saliency) 1/nanstd(features.Elhilali.mapped2EEG.saliency)];
-features.Elhilali.mapped2EEG.norm.envelope = [-nanmean(features.Elhilali.mapped2EEG.envelope) 1/nanstd(features.Elhilali.mapped2EEG.envelope)];
-features.Elhilali.mapped2EEG.norm.pitch = [-nanmean(features.Elhilali.mapped2EEG.pitch) 1/nanstd(features.Elhilali.mapped2EEG.pitch)];
-features.Elhilali.mapped2EEG.norm.specgram = [-nanmean(features.Elhilali.mapped2EEG.specgram) 1/nanstd(features.Elhilali.mapped2EEG.specgram)];
-features.Elhilali.mapped2EEG.norm.bw = [-nanmean(features.Elhilali.mapped2EEG.bw) 1/nanstd(features.Elhilali.mapped2EEG.bw)];
-features.Elhilali.mapped2EEG.norm.rate = [-nanmean(features.Elhilali.mapped2EEG.rate) 1/nanstd(features.Elhilali.mapped2EEG.rate)];
-
+% % calculate and save scaling factors to normalize standard dev of each
+% % feature to 1; these are stand-ins or the normalized features that will be calculated when needed
+% features.audio.mapped2EEG.norm.ITD = [-nanmean(features.audio.mapped2EEG.ITD(:)) 1/nanstd(features.audio.mapped2EEG.ITD(:))];
+% features.audio.mapped2EEG.norm.ILD = [-nanmean(features.audio.mapped2EEG.ILD(:)) 1/nanstd(features.audio.mapped2EEG.ILD(:))];
+% features.audio.mapped2EEG.norm.onsets = [-nanmean(features.audio.mapped2EEG.onsets(:)) 1/nanstd(features.audio.mapped2EEG.onsets(:))];
+% features.audio.mapped2EEG.norm.offsets = [-nanmean(features.audio.mapped2EEG.offsets(:)) 1/nanstd(features.audio.mapped2EEG.offsets(:))];
+% features.audio.mapped2EEG.norm.spectral_centroid = [-nanmean(features.audio.mapped2EEG.spectral_centroid) 1/nanstd(features.audio.mapped2EEG.spectral_centroid)];
+% features.audio.mapped2EEG.norm.spectral_brightness = [-nanmean(features.audio.mapped2EEG.spectral_brightness) 1/nanstd(features.audio.mapped2EEG.spectral_brightness)];
+% features.audio.mapped2EEG.norm.spectral_flux = [-nanmean(features.audio.mapped2EEG.spectral_flux) 1/nanstd(features.audio.mapped2EEG.spectral_flux)];
+% features.Kayser.mapped2EEG.norm.saliency = [-nanmean(features.Kayser.mapped2EEG.saliency(:)) 1/nanstd(features.Kayser.mapped2EEG.saliency(:))];
+% features.Elhilali.mapped2EEG.norm.saliency = [-nanmean(features.Elhilali.mapped2EEG.saliency) 1/nanstd(features.Elhilali.mapped2EEG.saliency)];
+% features.Elhilali.mapped2EEG.norm.envelope = [-nanmean(features.Elhilali.mapped2EEG.envelope) 1/nanstd(features.Elhilali.mapped2EEG.envelope)];
+% features.Elhilali.mapped2EEG.norm.pitch = [-nanmean(features.Elhilali.mapped2EEG.pitch) 1/nanstd(features.Elhilali.mapped2EEG.pitch)];
+% features.Elhilali.mapped2EEG.norm.specgram = [-nanmean(features.Elhilali.mapped2EEG.specgram) 1/nanstd(features.Elhilali.mapped2EEG.specgram)];
+% features.Elhilali.mapped2EEG.norm.bw = [-nanmean(features.Elhilali.mapped2EEG.bw) 1/nanstd(features.Elhilali.mapped2EEG.bw)];
+% features.Elhilali.mapped2EEG.norm.rate = [-nanmean(features.Elhilali.mapped2EEG.rate) 1/nanstd(features.Elhilali.mapped2EEG.rate)];
+% 
