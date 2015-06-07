@@ -62,7 +62,7 @@ for i = 1:size(featurevec,2)
     featurevec(:,i) = (featurevec(:,i)-nmean)/nstd;
 end
 save(sprintf('%s_featurevec.mat',eegfile(1:end-4)),'featurevec','featurenames');
-fprintf('Saved %s_featurevec.mat',eegfile(1:end-4));
+fprintf('Saved %s_featurevec.mat\n',eegfile(1:end-4));
 
 
 function [featurevec,featurenames] = lcf_getfeatures(features,remaining_samples)
