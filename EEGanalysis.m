@@ -10,7 +10,9 @@ switch step
     case 1
         global EEG
         disp('Step 1: Manual pruning of continuous data');
+        [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
         EEG = pop_biosig(eegfile,'channels',[1:3,8:22]);
+        [ALLEEG EEG CURRENTSET] = eeg_store(ALLEEG, EEG);
         EEG.chanlocs = readlocs('chanlocs.ced'); 
 
         % rereference to linked mastoids
@@ -38,9 +40,12 @@ switch step
         EEG = pop_saveset(EEG,'filename',sprintf('%s_step1.set',eegfile(1:end-4)),'filepath','.');
         
         % reconstitute regions matrix [start,stops] from EEG boundary events
-        [start,stops] = reconstitute_regions(EEG.event);
+        [starts,stops] = reconstitute_regions(EEG.event);
+        %[starts,stops] = combineregions([starts' stops']); % remove overlapping regions
         fid = fopen(sprintf('%s_step1_rejected.txt',eegfile(1:end-4)),'wt');
-        fprintf(fid,'%i\t%i\n',start,stops);
+        for i = 1:numel(starts)
+            fprintf(fid,'%i\t%i\n',starts(i),stops(i));
+        end
         fclose(fid);
         close_down
 
@@ -56,7 +61,9 @@ switch step
     
     case 3
         disp('Step 3: Prune ICA activations');
+        [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
         EEG = pop_loadset(sprintf('%s_step2.set',eegfile(1:end-4)));
+        [ALLEEG EEG CURRENTSET] = eeg_store(ALLEEG, EEG);
         EEG.setname='Step3result';
         % rename old boundary events
         for i = 1:length(EEG.event)
@@ -70,9 +77,12 @@ switch step
         EEG = evalin('base','EEG'); % recover modified EEG variable from base workspace
         
         % reconstitute regions matrix [start,stops] from EEG boundary events
-        [start,stops] = reconstitute_regions(EEG.event);
+        [starts,stops] = reconstitute_regions(EEG.event);
+        %[starts,stops] = combineregions([starts' stops']); % remove overlapping regions
         fid = fopen(sprintf('%s_step3_rejected.txt',eegfile(1:end-4)),'wt');
-        fprintf(fid,'%i\t%i\n',start,stops);
+        for i = 1:numel(starts)
+            fprintf(fid,'%i\t%i\n',starts(i),stops(i));
+        end
         fclose(fid);
         
         % revert renaming of old boundary events
@@ -148,51 +158,50 @@ switch step
 
 end
 
+
 function close_down
 close all;
 clear all;
 
-function newregions = combineregions(regions)
+
+function [starts,stops] = reconstitute_regions(events)
+% list of deletions (start and stops in samples)
+del = [];
+n = 1;
+for i = 1:length(events)
+    if strcmp(events(i).type,'boundary') && ~isnan(events(i).duration)
+        starts(n) = events(i).latency;
+        durs(n) = events(i).duration;
+        n = n + 1;
+    end
+end
+starts = starts - 0.5;   % remove offset added by eegrej.m to move boundary between samples
+for i = 1:numel(starts) % add cut-out durations back to star times
+    for idx = i+1:numel(starts)
+        starts(idx) = starts(idx) + durs(i);
+    end
+end
+stops = starts + durs; % calculate stop times from durations and starts
+starts = starts + 1; % eegrej subtracts 1 at the start
+
+
+function [starts,stops] = combineregions(regions)
 % copied from eeglab's eeg_eegrej.m
 regions = sortrows(sort(regions,2)); % Sorting regions
-allreg = [ regions(:,1)' regions(:,2)'; ones(1,numel(regions(:,1))) -ones(1,numel(regions(:,2)')) ].';
+allreg = [regions(:,1)' regions(:,2)'; ones(1,numel(regions(:,1))) -ones(1,numel(regions(:,2)')) ].';
 allreg = sortrows(allreg,1); % Sort all start and stop points (column 1),
 
 mboundary = cumsum(allreg(:,2)); % Rationale: regions will start always with 1 and close with 0, since starts=1 end=-1
 indx = 0; count = 1;
 
 while indx ~= length(allreg) 
-    newregions(count,1) = allreg(indx+1,1);
+    starts(count) = allreg(indx+1,1);
     [tmp,I]= min(abs(mboundary(indx+1:end)));
-    newregions(count,2) = allreg(I + indx,1);
+    stops(count) = allreg(I + indx,1);
     indx = indx + I ;
     count = count+1;
 end
 
-% Verbose
-if size(regions,1) ~= size(newregions,1)
-    warning('Overlapping regions detected and fixed.');
-end
-
-function [start,stops] = reconstitute_regions(events)
-% list of deletions (start and stops in samples)
-del = [];
-n = 1;
-for i = 1:length(events)
-    if strcmp(events(i).type,'boundary') && ~isnan(events(i).duration)
-        start(n) = events(i).latency;
-        durs(n) = events(i).duration;
-        n = n + 1;
-    end
-end
-start = start - 0.5;   % remove offset added by eegrej.m to move boundary between samples
-for i = 1:numel(start) % add cut-out durations back to star times
-    for idx = i+1:numel(start)
-        start(idx) = start(idx) + durs(i);
-    end
-end
-stops = start + durs; % calculate stop times from durations and starts
-start = start + 1; % eegrej subtracts 1 at the start
 
 %EEG = pop_subcomp(EEG,[1 2 3],0);
 % concatenate all recordings, then do ICA on filtered and pruned data
