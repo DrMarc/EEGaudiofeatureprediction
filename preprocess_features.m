@@ -16,14 +16,17 @@ for current_file = 1:length(files)-1
     rej_2 = load(sprintf('%s_step3_rejected.txt',file));
     % construct vector of non-rejected sample points
     remaining_samples = 1:length(features.audio.mapped2EEG.spectral_centroid);
+    deleted = [];
     for i = 1:size(rej_1,1);
-        deleted = [1:rej_1(i,2)]+rej_1(i,1)-1;
-        remaining_samples = setdiff(remaining_samples,deleted);
+        deleted = [deleted rej_1(i,1):rej_1(i,2)];
     end
+    remaining_samples(deleted) = [];
+    deleted = [];
     for i = 1:size(rej_2,1);
-        deleted = [1:rej_2(i,2)]+rej_2(i,1)-1;
-        remaining_samples = setdiff(remaining_samples,deleted);
+        deleted = [deleted rej_2(i,1):rej_2(i,2)];
     end
+    remaining_samples(deleted) = [];
+    
     % delete those samples from each entry in features.X.mapped2EEG and
     % save as new feature vector, all in one large matrix (samples x features)
     % also save a cell array of feature names and frequencies corresponding
