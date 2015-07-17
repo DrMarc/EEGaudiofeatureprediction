@@ -147,7 +147,7 @@ switch step
         EEG = evalin('base','EEG'); % recover modified EEG variable from base workspace
         ALLEEG = evalin('base','ALLEEG');
         % rejected ICs now in EEG.reject.gcompreject
-        EEG = eeg_checkset(EEG);
+        EEG = eeg_checkset(EEG,'ica');
         EEG = pop_saveset(EEG,'filename',sprintf('%s_step6.set',eegfile(1:end-4)),'filepath','.');
         % save accepted IC activations
         good_ICs = find(EEG.reject.gcompreject==0);
