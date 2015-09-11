@@ -1,4 +1,4 @@
-function preprocess_features(eegfile);
+function preprocess_features(eegfile)
 
 disp('Remove rejected data from features, concatenate runs and z-score');
 disp('The result should be aligned features and ICA ready for machine learning');
@@ -10,6 +10,7 @@ files = regexp(line,' ','split');
 
 for current_file = 1:length(files)-1
     file = files{current_file}(1:end-10);
+    fprintf('loading %s... ',file);
     load(sprintf('%s-features.mat',file));
     % load deletions
     rej_1 = load(sprintf('%s_step1_rejected.txt',file));
@@ -32,7 +33,7 @@ for current_file = 1:length(files)-1
     % also save a cell array of feature names and frequencies corresponding
     % to the rows of the feature vector
     
-    % Before we do that, a hack to removen an incosistency in the way the
+    % Before we do that, a hack to remove an incosistency in the way the
     % 1D features are saved by combineEEGaudifeatures.m
     % This should be taken out and fixed in combineEEGaudifeatures.m
     features.Elhilali.mapped2EEG.saliency = features.Elhilali.mapped2EEG.saliency';
@@ -64,8 +65,9 @@ for i = 1:size(featurevec,2)
     nstd  = nanstd(featurevec(:,i));
     featurevec(:,i) = (featurevec(:,i)-nmean)/nstd;
 end
-save(sprintf('%s_featurevec.mat',eegfile(1:end-4)),'featurevec','featurenames');
-fprintf('Saved %s_featurevec.mat\n',eegfile(1:end-4));
+fprintf('Saving %s_featurevec.mat\n',eegfile(1:end-4));
+save(sprintf('%s_featurevec.mat',eegfile(1:end-4)),'featurevec','featurenames','-v7.3');
+fprintf('Done.\n');
 
 
 function [featurevec,featurenames] = lcf_getfeatures(features,remaining_samples)
