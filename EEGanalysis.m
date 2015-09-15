@@ -155,7 +155,36 @@ switch step
         save(sprintf('%s_step6_icaact',eegfile(1:end-4)),'icaact','good_ICs');
         close_down;
         
-
+    case 7
+        disp('Step 7: Save IC spectrogram features.');
+        disp('If component clustering was performed, then this is done on the group ICs,');
+        disp('otherwise on the individual ICs.');
+        if exist(sprintf('.%s%s_groupICs.txt',filesep,eegfile(1:end-4)),'file') % group ICs available
+            groupICs = load(sprintf('.%s%s_groupICs.txt',filesep,eegfile(1:end-4))); % load the list
+            EEG = pop_loadset(sprintf('%s_step6.set',eegfile(1:end-4))); % load EEG data to extract ICs listed in group IC file
+            icaact = EEG.icaact(groupICs,:);
+        else
+            EEG = pop_loadset(sprintf('%s_step6.set',eegfile(1:end-4))); % load EEG data to extract ICs listed in group IC file
+            load(sprintf('%s_step6_icaact',eegfile(1:end-4)); % now we have icaact in memory
+        end
+        % compute the spectrogram of each IC, taking boundaries into account
+        % extract boundaries
+        bounds = [.5]; % this will be sample 1 after removing offset and adding 1 (see below)
+        for i = 1:length(EEG.event)
+            if strcmp(EEG.event(i).type,'boundary')
+                bounds = [bounds EEG.event(i).latency];
+            end
+        end
+        bounds = bounds - 0.5;   % remove offset added by eegrej.m to move boundary between samples
+        bounds = bounds + 1; % eegrej subtracts 1 at the start
+        % compute spectrogram for each data segment (not crossing boundaries to avoid edge artifacts) 
+        icaact_specgram = []; % container for resulting spectrograms, ic x time x freq
+        for i = 1:numel(bounds)-1
+            win = bounds([i-1 i]);
+            spec = dBspectrogram(icaact(:,win(1):win(2)));
+            icaact_specgram = cat(2,icaact_specgram,spec); % concatenate sprecgrams time axis
+        end
+        
 end
 
 
@@ -202,6 +231,29 @@ while indx ~= length(allreg)
     count = count+1;
 end
 
+function spec = dBspectrogram(sig)
+% calculate spectra of all rows (ICs) in sig 
+% sig ... ic x time
+% spec ... ic x time x freq
+
+for i = 1:size(sig,1)
+    
+    hN = (N/2)+1; % size of positive spectrum, including sample 0
+    hM1 = int(math.floor((w.size+1)/2)); % half analysis window size by rounding
+    hM2 = int(math.floor(w.size/2)); % half analysis window size by floor
+    fftbuffer = np.zeros(N); % initialize buffer for FFT
+    w = w/sum(w); % normalize analysis window
+    xw = x*w; % window the input sound
+    fftbuffer[:hM1] = xw[hM2:]; % zero-phase window in fftbuffer
+    fftbuffer[-hM2:] = xw[:hM2];
+    X = fft(fftbuffer); % compute FFT
+    absX = abs(X[:hN]); % compute ansolute value of positive side
+    absX[absX<np.finfo(float).eps] = np.finfo(float).eps; % if zeros add epsilon to handle log
+    mX = 20 * np.log10(absX); % magnitude spectrum of positive frequencies in dB
+    X[:hN].real[np.abs(X[:hN].real) < tol] = 0.0; % for phase calculation set to 0 the small values
+    X[:hN].imag[np.abs(X[:hN].imag) < tol] = 0.0; % for phase calculation set to 0 the small values         
+    pX = np.unwrap(np.angle(X[:hN])); % unwrapped phase spectrum of positive frequencies
+end
 
 %EEG = pop_subcomp(EEG,[1 2 3],0);
 % concatenate all recordings, then do ICA on filtered and pruned data
