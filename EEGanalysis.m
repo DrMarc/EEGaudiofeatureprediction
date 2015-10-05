@@ -1,11 +1,13 @@
-function EEGanalysis(eegfile)
+function EEGanalysis(eegfile,step)
 
 % determine step
-step = 1;
-while exist(sprintf('.%s%s_step%i.set',filesep,eegfile(1:end-4),step),'file');
-    step = step + 1;
+if nargin < 2
+    step = 1;
+    while exist(sprintf('.%s%s_step%i.set',filesep,eegfile(1:end-4),step),'file');
+        step = step + 1;
+    end
 end
-
+ 
 switch step
     case 1
         global EEG
@@ -124,11 +126,83 @@ switch step
         EEG = pop_runica(EEG,'extended',1,'interupt','off');
         EEG = eeg_checkset(EEG);
         EEG = pop_saveset(EEG,'filename',sprintf('%s_step5.set',eegfile(1:end-4)),'filepath','.');
-    
+        
     case 6
-        disp('Step 6: Select ICs');
+        disp('Step 6: Restart from raw data and reject datapoints (ensures consistent rejections in EEG and audio data)');
+        % go through all files from one session
+        fid = fopen(sprintf('%s_step4_filelist.txt',eegfile(1:end-4)),'r');
+        line = fgetl(fid);
+        fclose(fid);
+        files = regexp(line,' ','split');
         [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
-        EEG = pop_loadset(sprintf('%s_step5.set',eegfile(1:end-4)));
+        for current_file = 1:length(files)-1
+            file = files{current_file}(1:end-10);
+            eegfile = sprintf('%s.bdf',file);
+            fprintf('loading %s...\n',eegfile);
+            % preprocess again
+            EEG = pop_biosig(eegfile,'channels',[1:3,8:22]);
+            [ALLEEG EEG CURRENTSET] = eeg_store(ALLEEG,EEG,0);
+            EEG.chanlocs = readlocs('chanlocs.ced');
+            EEG.data(16,:) = EEG.data(16,:)/2;
+            EEG = pop_reref(EEG,16);
+            EEG = pop_select(EEG,'nochannel',11);
+            EEG2 = pop_loadset(sprintf('%s_step1.set',file));
+            if isfield(EEG2,'badchan') % remove same bad channels as in step 1
+                EEG.badchan = EEG2.badchan;
+                EEG = pop_select(EEG,'nochannel',EEG2.badchan);
+            end
+            clear EEG2;
+            EEG = pop_eegfiltnew(EEG,[],1,8250,true,[],0);
+            EEG = pop_eegfiltnew(EEG,[],40,330,0,[],0);
+            EEG.setname='Step6result';
+            len1 = EEG.pnts;
+            fprintf('Initial length of EEG recording: %i. \n',len1);
+            % load deletions
+            rej_1 = load(sprintf('%s_step1_rejected.txt',file));
+            rej_2 = load(sprintf('%s_step3_rejected.txt',file));
+            % construct vector of non-rejected sample points
+            remaining_samples = 1:size(EEG.data,2);
+            deleted = [];
+            for i = 1:size(rej_1,1);
+                deleted = [deleted rej_1(i,1):rej_1(i,2)];
+            end
+            del1 = length(deleted);
+            fprintf('Deleting %i samples in first round, ',del1);
+            remaining_samples(deleted) = [];
+            deleted = [];
+            for i = 1:size(rej_2,1);
+                deleted = [deleted rej_2(i,1):rej_2(i,2)];
+            end
+            del2 = length(deleted);
+            fprintf('and %i samples in second round.\n',del2);
+            remaining_samples(deleted) = [];
+            % remove sample points from EEG.data
+            EEG.data = EEG.data(:,remaining_samples);
+            EEG.pnts = size(EEG.data,2);
+            EEG = eeg_checkset(EEG);
+            len2 = EEG.pnts;
+            fprintf('Length after deletions: %i. \n',len2);
+            assert(len1-del1-del2 == len2); % make sure that the deletion add up, otherwise abort
+            [ALLEEG EEG CURRENTSET] = eeg_store(ALLEEG,EEG,current_file); % write changes back into ALLEEG (necessary? check!)
+            EEG = pop_saveset(EEG,'filename',sprintf('%s_step6a.set',file),'filepath','.');
+        end
+        % Merge files
+        EEG = pop_mergeset(ALLEEG,1:length(files)-1,0);
+        % Add IC decomposition from step 5
+        EEG2 = pop_loadset(sprintf('%s_step5.set',files{1}(1:end-10)));
+        EEG.icaweights = EEG2.icaweights;
+        EEG.icawinv = EEG2.icawinv;
+        EEG.icasphere = EEG2.icasphere;
+        clear EEG2;
+        EEG = eeg_checkset(EEG);
+        fprintf('Final length of merged EEG recordings: %i. \n',EEG.pnts);
+        EEG = pop_saveset(EEG,'filename',sprintf('%s_step6.set',files{1}(1:end-10)),'filepath','.');
+        close_down;
+        
+    case 7
+        disp('Step 7: Select ICs');
+        [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
+        EEG = pop_loadset(sprintf('%s_step6.set',eegfile(1:end-4)));
         if isempty(EEG.chanlocs(1).X); % no coordinates loaded
             EEG = pop_chanedit(EEG,'lookup','chanlocs.ced');
         end
@@ -155,7 +229,7 @@ switch step
         save(sprintf('%s_step6_icaact',eegfile(1:end-4)),'icaact','good_ICs');
         close_down;
         
-    case 7
+    case 8
         disp('Step 7: Save IC spectrogram features.');
         disp('If component clustering was performed, then this is done on the group ICs,');
         disp('otherwise on the individual ICs.');
@@ -165,11 +239,11 @@ switch step
             icaact = EEG.icaact(groupICs,:);
         else
             EEG = pop_loadset(sprintf('%s_step6.set',eegfile(1:end-4))); % load EEG data to extract ICs listed in group IC file
-            load(sprintf('%s_step6_icaact',eegfile(1:end-4)); % now we have icaact in memory
+            load(sprintf('%s_step6_icaact',eegfile(1:end-4))); % now we have icaact in memory
         end
         % compute the spectrogram of each IC, taking boundaries into account
         % extract boundaries
-        bounds = [.5]; % this will be sample 1 after removing offset and adding 1 (see below)
+        bounds = .5; % this will be sample 1 after removing offset and adding 1 (see below)
         for i = 1:length(EEG.event)
             if strcmp(EEG.event(i).type,'boundary')
                 bounds = [bounds EEG.event(i).latency];
@@ -231,28 +305,32 @@ while indx ~= length(allreg)
     count = count+1;
 end
 
-function spec = dBspectrogram(sig)
+function spec = dBspectrogram(sig,w)
 % calculate spectra of all rows (ICs) in sig 
-% sig ... ic x time
+% sig  ... ic x time
+% w    ... window (such as hamming(1024))
 % spec ... ic x time x freq
 
+hN = (N/2)+1; % size of positive spectrum, including sample 0
+hM1 = floor((length(w)+1)/2); % half analysis window size by rounding
+hM2 = floor(length(w)/2); % half analysis window size by floor
+fftbuffer = zeros(N,1); % initialize buffer for FFT
+w = w/sum(w); % normalize analysis window
+tol = 1e-10; % tolearance for setting bins to zero; improves phase angle calculation
+
+%%% TEST THIS! then add support for 2D
 for i = 1:size(sig,1)
-    
-    hN = (N/2)+1; % size of positive spectrum, including sample 0
-    hM1 = int(math.floor((w.size+1)/2)); % half analysis window size by rounding
-    hM2 = int(math.floor(w.size/2)); % half analysis window size by floor
-    fftbuffer = np.zeros(N); % initialize buffer for FFT
-    w = w/sum(w); % normalize analysis window
-    xw = x*w; % window the input sound
-    fftbuffer[:hM1] = xw[hM2:]; % zero-phase window in fftbuffer
-    fftbuffer[-hM2:] = xw[:hM2];
+    xw = x.*w; % window the input sound
+    fftbuffer(1:hM1) = xw(hM2:end); % zero-phase window in fftbuffer
+    fftbuffer(end-hM2:end) = xw(1:hM2);
     X = fft(fftbuffer); % compute FFT
-    absX = abs(X[:hN]); % compute ansolute value of positive side
-    absX[absX<np.finfo(float).eps] = np.finfo(float).eps; % if zeros add epsilon to handle log
-    mX = 20 * np.log10(absX); % magnitude spectrum of positive frequencies in dB
-    X[:hN].real[np.abs(X[:hN].real) < tol] = 0.0; % for phase calculation set to 0 the small values
-    X[:hN].imag[np.abs(X[:hN].imag) < tol] = 0.0; % for phase calculation set to 0 the small values         
-    pX = np.unwrap(np.angle(X[:hN])); % unwrapped phase spectrum of positive frequencies
+    X = X(1:hN); % only use positive frequencies
+    absX = abs(X); % compute absolute value of positive side
+    absX(absX<eps) = eps; % if zeros add epsilon to handle log
+    mX = 20 * log10(absX); % magnitude spectrum of positive frequencies in dB
+    X(real(abs(real(X))) < tol) = 0.0; % for phase calculation set to 0 the small values
+    X(imag(abs(imag(X))) < tol) = 0.0; % for phase calculation set to 0 the small values         
+    pX = unwrap(angle(X)); % unwrapped phase spectrum of positive frequencies
 end
 
 %EEG = pop_subcomp(EEG,[1 2 3],0);
