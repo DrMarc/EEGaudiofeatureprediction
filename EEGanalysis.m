@@ -60,7 +60,7 @@ switch step
         EEG = eeg_checkset(EEG);
         EEG = pop_saveset(EEG,'filename',sprintf('%s_step2.set',eegfile(1:end-4)),'filepath','.');
         %pop_expica(EEG,'weights','/Users/marc/Documents/MATLAB/marc_bus1_ICA.txt');
-    
+
     case 3
         disp('Step 3: Prune ICA activations');
         [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
@@ -98,7 +98,7 @@ switch step
         EEG = eeg_checkset(EEG);
         EEG = pop_saveset(EEG,'filename',sprintf('%s_step3.set',eegfile(1:end-4)),'filepath','.');
         close_down;
-        
+   
     case 4
         disp('Step 4: Merge data sets from same session');
         [FileName,PathName] = uigetfile('.set','Select SET files to merge:','multiselect','on');
@@ -119,14 +119,14 @@ switch step
         end
         fclose(fid);
         close_down;
-        
+
     case 5
         disp('Step 5: ICA on merged data for clustering');
         EEG = pop_loadset(sprintf('%s_step4.set',eegfile(1:end-4)));
         EEG = pop_runica(EEG,'extended',1,'interupt','off');
         EEG = eeg_checkset(EEG);
         EEG = pop_saveset(EEG,'filename',sprintf('%s_step5.set',eegfile(1:end-4)),'filepath','.');
-        
+  
     case 6
         disp('Step 6: Restart from raw data and reject datapoints (ensures consistent rejections in EEG and audio data)');
         % go through all files from one session
@@ -198,7 +198,7 @@ switch step
         fprintf('Final length of merged EEG recordings: %i. \n',EEG.pnts);
         EEG = pop_saveset(EEG,'filename',sprintf('%s_step6.set',files{1}(1:end-10)),'filepath','.');
         close_down;
-        
+
     case 7
         disp('Step 7: Select ICs');
         [ALLEEG EEG CURRENTSET ALLCOM] = eeglab;
@@ -222,24 +222,24 @@ switch step
         ALLEEG = evalin('base','ALLEEG');
         % rejected ICs now in EEG.reject.gcompreject
         EEG = eeg_checkset(EEG,'ica');
-        EEG = pop_saveset(EEG,'filename',sprintf('%s_step6.set',eegfile(1:end-4)),'filepath','.');
+        EEG = pop_saveset(EEG,'filename',sprintf('%s_step7.set',eegfile(1:end-4)),'filepath','.');
         % save accepted IC activations
-        good_ICs = find(EEG.reject.gcompreject==0);
+        good_ICs = EEG.reject.gcompreject==0;
         icaact = EEG.icaact(good_ICs,:);
-        save(sprintf('%s_step6_icaact',eegfile(1:end-4)),'icaact','good_ICs');
+        save(sprintf('%s_step7_icaact',eegfile(1:end-4)),'icaact','good_ICs');
         close_down;
-        
+ 
     case 8
-        disp('Step 7: Save IC spectrogram features.');
+        disp('Step 8: Save IC spectrogram features.');
         disp('If component clustering was performed, then this is done on the group ICs,');
         disp('otherwise on the individual ICs.');
         if exist(sprintf('.%s%s_groupICs.txt',filesep,eegfile(1:end-4)),'file') % group ICs available
-            groupICs = load(sprintf('.%s%s_groupICs.txt',filesep,eegfile(1:end-4))); % load the list
-            EEG = pop_loadset(sprintf('%s_step6.set',eegfile(1:end-4))); % load EEG data to extract ICs listed in group IC file
+            groupICs = load(sprintf('.%s%s_groupICs.txt',filesep,eegfile(1:end-4))); % load the list [indices of corresponding ICs]
+            EEG = pop_loadset(sprintf('%s_step7.set',eegfile(1:end-4))); % load EEG data to extract ICs listed in group IC file
             icaact = EEG.icaact(groupICs,:);
         else
-            EEG = pop_loadset(sprintf('%s_step6.set',eegfile(1:end-4))); % load EEG data to extract ICs listed in group IC file
-            load(sprintf('%s_step6_icaact',eegfile(1:end-4))); % now we have icaact in memory
+            EEG = pop_loadset(sprintf('%s_step7.set',eegfile(1:end-4))); % we don't need the raw data anymore
+            load(sprintf('%s_step7_icaact',eegfile(1:end-4))); % now we have icaact in memory
         end
         % compute the spectrogram of each IC, taking boundaries into account
         % extract boundaries
@@ -252,13 +252,13 @@ switch step
         bounds = bounds - 0.5;   % remove offset added by eegrej.m to move boundary between samples
         bounds = bounds + 1; % eegrej subtracts 1 at the start
         % compute spectrogram for each data segment (not crossing boundaries to avoid edge artifacts) 
-        icaact_specgram = []; % container for resulting spectrograms, ic x time x freq
+        icaspec = zeros(10,EEG.pnts,size(icaact,1)); % container for resulting spectrograms, freq x time x IC
         for i = 1:numel(bounds)-1
-            win = bounds([i-1 i]);
-            spec = dBspectrogram(icaact(:,win(1):win(2)));
-            icaact_specgram = cat(2,icaact_specgram,spec); % concatenate sprecgrams time axis
+            win = [bounds(i) bounds(i+1)-1]; % section of data including the lower but excluding the higher end sample
+            spec = ICAspect(icaact(:,win(1):win(2)));
+            icaspec(:,win(1):win(2),:) = spec; % concatenate specgrams time axis
         end
-        
+        save(sprintf('%s_step8_icaspec',eegfile(1:end-4)),'icaspec');
 end
 
 
@@ -305,38 +305,24 @@ while indx ~= length(allreg)
     count = count+1;
 end
 
-function spec = dBspectrogram(sig,w)
+
+function spec = ICAspect(sig)
 % calculate spectra of all rows (ICs) in sig 
-% sig  ... ic x time
-% w    ... window (such as hamming(1024))
-% spec ... ic x time x freq
-
-hN = (N/2)+1; % size of positive spectrum, including sample 0
-hM1 = floor((length(w)+1)/2); % half analysis window size by rounding
-hM2 = floor(length(w)/2); % half analysis window size by floor
-fftbuffer = zeros(N,1); % initialize buffer for FFT
-w = w/sum(w); % normalize analysis window
-tol = 1e-10; % tolearance for setting bins to zero; improves phase angle calculation
-
-%%% TEST THIS! then add support for 2D
-for i = 1:size(sig,1)
-    xw = x.*w; % window the input sound
-    fftbuffer(1:hM1) = xw(hM2:end); % zero-phase window in fftbuffer
-    fftbuffer(end-hM2:end) = xw(1:hM2);
-    X = fft(fftbuffer); % compute FFT
-    X = X(1:hN); % only use positive frequencies
-    absX = abs(X); % compute absolute value of positive side
-    absX(absX<eps) = eps; % if zeros add epsilon to handle log
-    mX = 20 * log10(absX); % magnitude spectrum of positive frequencies in dB
-    X(real(abs(real(X))) < tol) = 0.0; % for phase calculation set to 0 the small values
-    X(imag(abs(imag(X))) < tol) = 0.0; % for phase calculation set to 0 the small values         
-    pX = unwrap(angle(X)); % unwrapped phase spectrum of positive frequencies
+% sig  ... IC x time
+% spec ... freq x time x IC
+ncomp = size(sig,1); % number of ICs
+N = size(sig,2); % number of samples
+specbins = 10; % number of frequency bins (hardcoded in dBspectrogram)
+spec = zeros(specbins,N,ncomp); % allocate spectrogram matrix
+for i = 1:ncomp
+    spec(:,:,i) = dBspectrogram(sig(i,:));
 end
+
 
 %EEG = pop_subcomp(EEG,[1 2 3],0);
 % concatenate all recordings, then do ICA on filtered and pruned data
 % (1-40/50 Hz), (then perhaps reject again on ICA time course), then apply
-% weights to pruned raw data (although we don#t actually do that because we
+% weights to pruned raw data (although we don't actually do that because we
 % will predict from the ICA time courses directly).
 % Also, calculate contralateralty and ITD/ILD relationship!
 % Cross-validation to see whether that is predictive
