@@ -168,6 +168,7 @@ switch step
             end
             del1 = length(deleted);
             fprintf('Deleting %i samples in first round, ',del1);
+            EEG.event = eeg_insertbound(EEG.event,length(remaining_samples),rej_1); % insert boundary events so that the spectrogram can be discontinued at boundaries
             remaining_samples(deleted) = [];
             deleted = [];
             for i = 1:size(rej_2,1);
@@ -175,6 +176,7 @@ switch step
             end
             del2 = length(deleted);
             fprintf('and %i samples in second round.\n',del2);
+            EEG.event = eeg_insertbound(EEG.event,length(remaining_samples),rej_2);
             remaining_samples(deleted) = [];
             % remove sample points from EEG.data
             EEG.data = EEG.data(:,remaining_samples);
@@ -250,7 +252,7 @@ switch step
             end
         end
         bounds = bounds - 0.5;   % remove offset added by eegrej.m to move boundary between samples
-        bounds = bounds + 1; % eegrej subtracts 1 at the start
+        bounds = bounds + 1; % eegrej subtracts 1 at the start e.g., a latency of 2000.3 means 0.3 samples (at EEG.srate) after the 2001st data frame (since first frame has latency 0)
         % compute spectrogram for each data segment (not crossing boundaries to avoid edge artifacts) 
         icaspec = zeros(10,EEG.pnts,size(icaact,1)); % container for resulting spectrograms, freq x time x IC
         for i = 1:numel(bounds)-1
@@ -315,9 +317,14 @@ N = size(sig,2); % number of samples
 specbins = 10; % number of frequency bins (hardcoded in dBspectrogram)
 spec = zeros(specbins,N,ncomp); % allocate spectrogram matrix
 for i = 1:ncomp
-    spec(:,:,i) = dBspectrogram(sig(i,:));
+    if size(sig,2) >=100
+        spec(:,:,i) = dBspectrogram(sig(i,:));
+    else % no usable spectrogram can be computed
+        fprintf('Segment too short - spectrogram truncated to %i frames.\n',N);
+        tmp = dBspectrogram(sig(i,:));
+        spec(:,:,i) = tmp(:,1:N);
+    end
 end
-
 
 %EEG = pop_subcomp(EEG,[1 2 3],0);
 % concatenate all recordings, then do ICA on filtered and pruned data
